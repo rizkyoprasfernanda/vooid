@@ -1,4 +1,7 @@
 {
   "name": "vooid",
-  "displayName": "vooid"
+  "displayName": "vooid",
+  "plugins": [
+    "expo-secure-store"
+  ]
 }

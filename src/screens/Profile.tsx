@@ -1,15 +1,70 @@
-import {View, Text, Image, ScrollView} from 'react-native';
-import React from 'react';
-import {useNavigation} from '@react-navigation/native';
+import {View, Text, Image, ScrollView, TouchableOpacity} from 'react-native';
+import React, {useEffect, useState, useCallback} from 'react';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList} from '../App';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {styles} from '../constant/styles/styleProfile';
 import Icon from '../assets/icons/Icons';
 import ResposiveImage from '../services/autoResizeImage';
+import {supabase} from '../services/supabase';
+import LogoutModal from '../component/Logout';
 
 const Profile = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const [profile, setProfile] = useState({
+    image: '',
+    name: '',
+    username: '',
+    bio: '',
+  });
+  const [isModalVisible, setModalVisible] = useState(false);
+
+  const fetchProfile = async () => {
+    const {data: session} = await supabase.auth.getSession();
+    if (!session?.session) return;
+
+    const userId = session.session.user.id;
+    const {data, error} = await supabase
+      .from('users')
+      .select('image, name, username, bio')
+      .eq('id', userId)
+      .single();
+
+    if (error) console.error(error);
+    else setProfile(data);
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Tutup modal terlebih dahulu
+      setModalVisible(false);
+
+      // Panggil fungsi sign out dari Supabase
+      const {error} = await supabase.auth.signOut();
+
+      if (error) {
+        console.error('Logout failed:', error.message);
+        return;
+      }
+
+      console.log('User Logged Out');
+
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'SignIn'}],
+      });
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, []),
+  );
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <ScrollView
@@ -19,29 +74,47 @@ const Profile = () => {
         overScrollMode="always"
         showsVerticalScrollIndicator={false}>
         <View style={styles.container}>
+          {/* Header */}
           <View style={styles.headerContainer}>
             <View style={styles.headerWrapper}>
-              <View style={styles.profileAccount}>
-                <Text style={styles.profileAccountName}>Aruniqa</Text>
-                <Icon name="arrowDown" />
-              </View>
-              <View style={styles.profileMenu}>
+              <TouchableOpacity onPress={() => setModalVisible(true)}>
+                <View style={styles.profileAccount}>
+                  <Text style={styles.profileAccountName}>
+                    {profile.name || 'User'}
+                  </Text>
+                  <Icon name="arrowDown" />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity>
                 <Icon name="menu" />
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
+          {/* Profile Section */}
           <View style={styles.profileContainer}>
             <View style={styles.profileWrapper}>
               <View style={styles.profileImageWrapper}>
-                <Image
-                  source={require('../assets/images/defaultProfilePicture.jpg')}
-                  style={styles.profileImage}
-                />
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('ProfileSettings')}>
+                  <Image
+                    source={
+                      profile.image
+                        ? {uri: profile.image}
+                        : require('../assets/images/defaultProfilePicture.jpg')
+                    }
+                    style={styles.profileImage}
+                  />
+                </TouchableOpacity>
               </View>
               <View style={styles.profileNameWrapper}>
-                <Text style={styles.profileName}>Aruniqa</Text>
-                <Text style={styles.profileUsername}>@aruniqa</Text>
+                <Text style={styles.profileName}>{profile.name || 'User'}</Text>
+                <Text style={styles.profileUsername}>
+                  @{profile.username || 'username'}
+                </Text>
+                <Text style={styles.profileBio}>{profile.bio}</Text>
               </View>
+
               <View style={styles.postFollowContainer}>
                 <View style={styles.postFollowWrapper}>
                   <Text style={styles.textPostFollow}>75</Text>
@@ -63,7 +136,11 @@ const Profile = () => {
               contentContainerStyle={styles.storyContainer}>
               <View style={styles.storyWrapper}>
                 <Image
-                  source={require('../assets/images/defaultProfilePicture.jpg')}
+                  source={
+                    profile.image
+                      ? {uri: profile.image}
+                      : require('../assets/images/defaultProfilePicture.jpg')
+                  }
                   style={styles.storyWrapperProfile}
                 />
                 <Text style={styles.storyWrapeprText}>Add Story</Text>
@@ -115,12 +192,16 @@ const Profile = () => {
               <View style={styles.postHeader}>
                 <View style={styles.postHeaderWrapper}>
                   <Image
-                    source={require('../assets/images/defaultProfilePicture.jpg')}
+                    source={
+                      profile.image
+                        ? {uri: profile.image}
+                        : require('../assets/images/defaultProfilePicture.jpg')
+                    }
                     style={styles.postProfilePicture}
                   />
                 </View>
                 <View style={styles.postHeaderWrapper}>
-                  <Text style={styles.postName}>Aruniqa</Text>
+                  <Text style={styles.postName}>{profile.name || 'User'}</Text>
                   <Text style={styles.postTime}>2 hours ago</Text>
                 </View>
               </View>
@@ -132,49 +213,13 @@ const Profile = () => {
                 />
               </View>
             </View>
-            <View style={styles.postWrapper}>
-              <View style={styles.postHeader}>
-                <View style={styles.postHeaderWrapper}>
-                  <Image
-                    source={require('../assets/images/defaultProfilePicture.jpg')}
-                    style={styles.postProfilePicture}
-                  />
-                </View>
-                <View style={styles.postHeaderWrapper}>
-                  <Text style={styles.postName}>Aruniqa</Text>
-                  <Text style={styles.postTime}>1 days ago</Text>
-                </View>
-              </View>
-              <View style={styles.postBody}>
-                <Text style={styles.textBody}>Wonderfull</Text>
-                <ResposiveImage
-                  source={require('../assets/images/pict6.jpg')}
-                  style={styles.postPicture}
-                />
-              </View>
-            </View>
-            <View style={styles.postWrapper}>
-              <View style={styles.postHeader}>
-                <View style={styles.postHeaderWrapper}>
-                  <Image
-                    source={require('../assets/images/defaultProfilePicture.jpg')}
-                    style={styles.postProfilePicture}
-                  />
-                </View>
-                <View style={styles.postHeaderWrapper}>
-                  <Text style={styles.postName}>Aruniqa</Text>
-                  <Text style={styles.postTime}>2 days ago</Text>
-                </View>
-              </View>
-              <View style={styles.postBody}>
-                <Text style={styles.textBody}>Wonderfull</Text>
-                <ResposiveImage
-                  source={require('../assets/images/pict2.jpg')}
-                  style={styles.postPicture}
-                />
-              </View>
-            </View>
           </View>
+          {/* Modal Logout */}
+          <LogoutModal
+            isVisible={isModalVisible}
+            onClose={() => setModalVisible(false)}
+            onLogout={handleLogout}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

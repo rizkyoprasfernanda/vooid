@@ -74,6 +74,12 @@ export const styles = StyleSheet.create({
     color: '#666666',
   },
 
+  profileBio: {
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 15,
+    color: '#333',
+  },
+
   postFollowContainer: {
     paddingTop: 10,
     paddingBottom: 10,
